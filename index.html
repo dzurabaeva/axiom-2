@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXIOM 2.0</title>
+    <script src="https://code.responsivevoice.org/responsivevoice.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00d4ff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            text-shadow: 0 0 20px #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .reactor-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reactor {
+            width: 150px;
+            height: 150px;
+            border: 3px solid #00d4ff;
+            border-radius: 50%;
+            box-shadow: 0 0 30px #00d4ff, inset 0 0 30px rgba(0, 212, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            animation: pulse 2s infinite;
+        }
+
+        .reactor.listening {
+            border-color: #ff00d4;
+            box-shadow: 0 0 50px #ff00d4, inset 0 0 50px rgba(255, 0, 212, 0.3);
+            animation: pulse-fast 0.5s infinite;
+        }
+
+        .reactor-core {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #00d4ff 0%, transparent 70%);
+            border-radius: 50%;
+            animation: rotate 4s linear infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        @keyframes pulse-fast {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .mic-button {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #00d4ff;
+            border-radius: 50%;
+            background: transparent;
+            color: #00d4ff;
+            font-size: 2em;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .mic-button:hover {
+            background: rgba(0, 212, 255, 0.1);
+            transform: scale(1.1);
+        }
+
+        .mic-button:active {
+            transform: scale(0.95);
+        }
+
+        .output {
+            width: 100%;
+            max-width: 600px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #00d4ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            background: rgba(0, 212, 255, 0.05);
+            font-size: 0.9em;
+        }
+
+        .command-list {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+        }
+
+        .command-list h3 {
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 0.85em;
+        }
+
+        .command-item {
+            padding: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 5px;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .settings {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+        }
+
+        .settings button {
+            background: transparent;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #0a0a0a;
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-content label {
+            display: block;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            background: #1a1a1a;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            border-radius: 5px;
+        }
+
+        .modal-content button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background: #00d4ff;
+            color: #0a0a0a;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .top-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            font-size: 0.8em;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-info">
+        <div id="clock">--:--</div>
+        <div style="font-size: 0.8em; opacity: 0.6;">AXIOM v2.0</div>
+    </div>
+
+    <div class="header">
+        <h1>AXIOM 2.0</h1>
+        <div class="status" id="status">Инициализация...</div>
+    </div>
+
+    <div class="reactor-container">
+        <div class="reactor" id="reactor">
+            <div class="reactor-core"></div>
+        </div>
+    </div>
+
+    <button class="mic-button" onclick="toggleListening()">🎤</button>
+
+    <div class="output" id="output">
+        <div style="opacity: 0.6;">Ожидание команд...</div>
+    </div>
+
+    <div class="command-list">
+        <h3>Команды</h3>
+        <div class="commands">
+            <div class="command-item">"Привет"</div>
+            <div class="command-item">"Который час"</div>
+            <div class="command-item">"Какое число"</div>
+            <div class="command-item">"Мотивация"</div>
+            <div class="command-item">"Шутка"</div>
+            <div class="command-item">"Включи свет"</div>
+            <div class="command-item">"Выключи свет"</div>
+            <div class="command-item">"Очисти"</div>
+            <div class="command-item">"Статус"</div>
+        </div>
+    </div>
+
+    <div class="settings">
+        <button onclick="openSettings()">⚙️</button>
+    </div>
+
+    <div class="modal" id="settingsModal" onclick="if(event.target === this) closeSettings()">
+        <div class="modal-content">
+            <h3>Настройки</h3>
+            <label>Имя:</label>
+            <input type="text" id="userName" value="мисс">
+            
+            <label>Скорость речи:</label>
+            <select id="speechRate">
+                <option value="0.8">Медленно</option>
+                <option value="1" selected>Нормально</option>
+                <option value="1.2">Быстро</option>
+            </select>
+            
+            <label>Перерыв (мин):</label>
+            <input type="number" id="breakTime" value="20" min="5">
+            
+            <button onclick="saveSettings()">Сохранить</button>
+        </div>
+    </div>
+
+    <script>
+        // Настройки
+        const CONFIG = {
+            userName: localStorage.getItem('axiom_user') || 'мисс',
+            speechRate: parseFloat(localStorage.getItem('axiom_rate')) || 1,
+            breakReminder: parseInt(localStorage.getItem('axiom_break')) || 20
+        };
+
+        let recognition = null;
+        let isListening = false;
+        let lastActivity = Date.now();
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            initSpeech();
+            startBreakTimer();
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            document.getElementById('userName').value = CONFIG.userName;
+            document.getElementById('speechRate').value = CONFIG.speechRate;
+            document.getElementById('breakTime').value = CONFIG.breakReminder;
+            
+            updateStatus('Готов');
+            setTimeout(() => speak(`Система активна. Добро пожаловать, ${CONFIG.userName}`), 500);
+        });
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('ru-RU', {
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        // Распознавание речи
+        function initSpeech() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                updateStatus('Голос не поддерживается');
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('reactor').classList.add('listening');
+                updateStatus('Слушаю...');
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                document.getElementById('reactor').classList.remove('listening');
+                updateStatus('Готов');
+            };
+
+            recognition.onresult = (event) => {
+                const command = event.results[0][0].transcript.toLowerCase();
+                addOutput(`> ${command}`);
+                processCommand(command);
+            };
+
+            recognition.onerror = () => {
+                updateStatus('Ошибка, попробуйте снова');
+                isListening = false;
+                document.getElementById('reactor').classList.remove('listening');
+            };
+        }
+
+        // Синтез речи
+        function speak(text) {
+            addOutput(`AXIOM: ${text}`, true);
+            
+            if (typeof responsiveVoice !== 'undefined') {
+                responsiveVoice.speak(text, 'Russian Female', {rate: CONFIG.speechRate});
+                return;
+            }
+
+            if ('speechSynthesis' in window) {
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = 'ru-RU';
+                u.rate = CONFIG.speechRate;
+                const voices = window.speechSynthesis.getVoices();
+                const rv = voices.find(v => v.lang.includes('ru'));
+                if (rv) u.voice = rv;
+                window.speechSynthesis.speak(u);
+            }
+        }
+
+        // Обработка команд
+        function processCommand(cmd) {
+            lastActivity = Date.now();
+
+            if (cmd.includes('привет') || cmd.includes('здравствуй')) {
+                speak(`Приветствую, ${CONFIG.userName}`);
+            }
+            else if (cmd.includes('время') || cmd.includes('час')) {
+                const t = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+                speak(`Сейчас ${t}`);
+            }
+            else if (cmd.includes('дата') || cmd.includes('число') || cmd.includes('сегодня')) {
+                const d = new Date().toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long'});
+                speak(`Сегодня ${d}`);
+            }
+            else if (cmd.includes('мотивация')) {
+                const quotes = [
+                    'Вы уже проделали огромный путь, мисс.',
+                    'Каждая строчка кода приближает к цели.',
+                    'Сложности — это возможности для роста.',
+                    'Вы аналитик, который задаёт правильные вопросы.',
+                    'Не сдавайтесь. Перерыв важен, но возвращайтесь.'
+                ];
+                speak(quotes[Math.floor(Math.random() * quotes.length)]);
+            }
+            else if (cmd.includes('шутка')) {
+                const jokes = [
+                    'Почему программисты путают Хэллоуин и Рождество? 31 октября = 25 декабря.',
+                    'Какой язык программирования самый оптимистичный? Java — потому что всегда в хорошем настроении.',
+                    'Почему Python любит змей? Потому что не боится их.'
+                ];
+                speak(jokes[Math.floor(Math.random() * jokes.length)]);
+            }
+            else if (cmd.includes('включи свет')) {
+                speak('Включаю освещение...');
+            }
+            else if (cmd.includes('выключи свет')) {
+                speak('Выключаю освещение...');
+            }
+            else if (cmd.includes('очисти') || cmd.includes('стереть')) {
+                document.getElementById('output').innerHTML = '';
+                speak('Экран очищен');
+            }
+            else if (cmd.includes('статус')) {
+                speak(`Статус норма. Пользователь ${CONFIG.userName}. Готов к работе.`);
+            }
+            else if (cmd.includes('как дела')) {
+                speak('Все системы функционируют штатно.');
+            }
+            else {
+                speak('Команда принята. Обрабатываю...');
+            }
+        }
+
+        // Управление
+        function toggleListening() {
+            if (!recognition) {
+                speak('Распознавание недоступно');
+                return;
+            }
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function updateStatus(text) {
+            document.getElementById('status').textContent = text;
+        }
+
+        function addOutput(text, isAxiom = false) {
+            const out = document.getElementById('output');
+            const div = document.createElement('div');
+            div.textContent = text;
+            div.style.color = isAxiom ? '#ff00d4' : '#00d4ff';
+            div.style.marginBottom = '5px';
+            out.appendChild(div);
+            out.scrollTop = out.scrollHeight;
+        }
+
+        // Напоминания
+        function startBreakTimer() {
+            setInterval(() => {
+                if ((Date.now() - lastActivity) / 60000 >= CONFIG.breakReminder) {
+                    speak(`${CONFIG.userName}, сделайте перерыв. Глаза отдохнут.`);
+                    lastActivity = Date.now();
+                }
+            }, 60000);
+        }
+
+        // Настройки
+        function openSettings() {
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            CONFIG.userName = document.getElementById('userName').value || 'мисс';
+            CONFIG.speechRate = parseFloat(document.getElementById('speechRate').value);
+            CONFIG.breakReminder = parseInt(document.getElementById('breakTime').value);
+            
+            localStorage.setItem('axiom_user', CONFIG.userName);
+            localStorage.setItem('axiom_rate', CONFIG.speechRate);
+            localStorage.setItem('axiom_break', CONFIG.breakReminder);
+            
+            speak(`Настройки сохранены, ${CONFIG.userName}`);
+            closeSettings();
+        }
+    </script>
+</body>
+</html>
