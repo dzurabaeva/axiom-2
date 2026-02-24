@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXIOM AI</title>
+    <script src="https://code.responsivevoice.org/responsivevoice.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #00d4ff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .corner {
+            position: fixed;
+            width: 50px;
+            height: 50px;
+            border: 2px solid #00d4ff;
+        }
+
+        .corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .status-online {
+            font-size: 0.8em;
+            letter-spacing: 5px;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .welcome {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #00d4ff;
+        }
+
+        .subtitle {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+
+        .reactor-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reactor {
+            width: 140px;
+            height: 140px;
+            border: 3px solid #00d4ff;
+            border-radius: 50%;
+            box-shadow: 0 0 30px #00d4ff, inset 0 0 30px rgba(0, 212, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+            transition: all 0.3s;
+        }
+
+        .reactor.listening {
+            border-color: #ff00d4;
+            box-shadow: 0 0 50px #ff00d4, inset 0 0 50px rgba(255, 0, 212, 0.3);
+            animation: pulse-fast 0.5s infinite;
+        }
+
+        .reactor-core {
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle, #00d4ff 0%, transparent 70%);
+            border-radius: 50%;
+            animation: rotate 3s linear infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        @keyframes pulse-fast {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .response-text {
+            min-height: 60px;
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(0, 212, 255, 0.05);
+            font-size: 1em;
+        }
+
+        .lang-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .lang-btn {
+            padding: 10px 25px;
+            border: 1px solid #00d4ff;
+            background: transparent;
+            color: #00d4ff;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .lang-btn:hover, .lang-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            box-shadow: 0 0 15px #00d4ff;
+        }
+
+        .mic-button {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #00d4ff;
+            border-radius: 50%;
+            background: transparent;
+            color: #00d4ff;
+            font-size: 2em;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mic-button:hover {
+            background: rgba(0, 212, 255, 0.1);
+            transform: scale(1.1);
+        }
+
+        .mic-button:active {
+            transform: scale(0.95);
+        }
+
+        .commands-hint {
+            margin-top: 30px;
+            font-size: 0.75em;
+            opacity: 0.6;
+            line-height: 1.6;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .settings-btn {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border: 1px solid #00d4ff;
+            border-radius: 5px;
+            background: transparent;
+            color: #00d4ff;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #000;
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+        }
+
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #111;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .modal-content button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="container">
+        <div class="status-online">ONLINE</div>
+        
+        <div class="welcome">Добро пожаловать, мисс</div>
+        
+        <div class="subtitle" id="subtitle">Нажмите микрофон для команд</div>
+
+        <div class="reactor-container">
+            <div class="reactor" id="reactor">
+                <div class="reactor-core"></div>
+            </div>
+        </div>
+
+        <div class="response-text" id="response">
+            Приветствую, мисс. AXIOM в режиме ожидания.
+        </div>
+
+        <div class="lang-buttons">
+            <button class="lang-btn active" onclick="setLang('ru')">Русский</button>
+            <button class="lang-btn" onclick="setLang('en')">English</button>
+        </div>
+
+        <button class="mic-button" onclick="toggleListening()">🎤</button>
+
+        <div class="commands-hint" id="commandsHint">
+            "Время" - текущее время | "Дата" - сегодняшняя дата<br>
+            "Привет" - приветствие | "Пока" - прощание<br>
+            "Мотивация" - цитата | "Шутка" - анекдот<br>
+            "Погода" - погода | "Температура" - температура<br>
+            "Статус" - диагностика | "Очисти" - стереть экран<br>
+            "Имя" - сменить имя | "Язык" - сменить язык<br>
+            "Увеличь" - увеличить реактор | "Уменьши" - уменьшить<br>
+            "Вращай" - вращать реактор | "Стоп" - остановить<br>
+            "Цвет синий" - синий реактор | "Цвет розовый" - розовый<br>
+            "Цвет зелёный" - зелёный | "Цвет жёлтый" - жёлтый<br>
+            "Яркость" - уровень яркости | "Громкость" - уровень звука<br>
+            "Тихо" - тихий режим | "Громко" - громкий режим<br>
+            "Новости" - новости | "Курс" - курс валют<br>
+            "Таймер" - установить таймер | "Будильник" - будильник<br>
+            "Калькулятор" - калькулятор | "Перевод" - переводчик<br>
+            "Поиск" - поиск в интернете | "Музыка" - включить музыку<br>
+            "Видео" - видео | "Фильм" - рекомендация фильма<br>
+            "Книга" - рекомендация книги | "Рецепт" - рецепт блюда<br>
+            "Совет" - полезный совет | "Факт" - интересный факт<br>
+            "Загадка" - загадка | "История" - история<br>
+            "Стих" - стихотворение | "Песня" - текст песни<br>
+            "День недели" - день недели | "Сезон" - время года<br>
+            "Фаза луны" - фаза луны | "Зодиак" - гороскоп<br>
+            "Праздник" - сегодняшний праздник | "Именины" - именины<br>
+            "День рождения" - дней до дня рождения | "Возраст" - сколько лет<br>
+            "Весна" - дней до весны | "Лето" - дней до лета<br>
+            "Осень" - дней до осени | "Зима" - дней до зимы<br>
+            "Новый год" - дней до Нового года | "Декабрь" - дней до декабря
+        </div>
+    </div>
+
+    <button class="settings-btn" onclick="openSettings()">⚙️</button>
+
+    <div class="modal" id="settingsModal" onclick="if(event.target === this) closeSettings()">
+        <div class="modal-content">
+            <h3>Настройки AXIOM</h3>
+            <label>Ваше имя:</label>
+            <input type="text" id="userName" value="мисс">
+            
+            <label>Скорость речи:</label>
+            <select id="speechRate">
+                <option value="0.8">Медленно</option>
+                <option value="1" selected>Нормально</option>
+                <option value="1.2">Быстро</option>
+            </select>
+            
+            <button onclick="saveSettings()">Сохранить</button>
+            <button onclick="closeSettings()" style="background: transparent; color: #00d4ff; border: 1px solid #00d4ff;">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            userName: localStorage.getItem('axiom_user') || 'мисс',
+            lang: localStorage.getItem('axiom_lang') || 'ru',
+            speechRate: parseFloat(localStorage.getItem('axiom_rate')) || 1,
+            reactorScale: 1,
+            isRotating: true,
+            currentColor: '#00d4ff'
+        };
+
+        let recognition = null;
+        let isListening = false;
+        let rotationInterval = null;
+
+        const texts = {
+            ru: {
+                welcome: 'Добро пожаловать, ',
+                subtitle: 'Нажмите микрофон для команд',
+                waiting: 'Приветствую, мисс. AXIOM в режиме ожидания.',
+                online: 'ONLINE',
+                unknown: 'Команда принята. Обрабатываю...'
+            },
+            en: {
+                welcome: 'Welcome, ',
+                subtitle: 'Tap microphone for commands',
+                waiting: 'Greetings, miss. AXIOM standing by.',
+                online: 'ONLINE',
+                unknown: 'Command acknowledged. Processing...'
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSpeech();
+            document.getElementById('userName').value = CONFIG.userName;
+            document.getElementById('speechRate').value = CONFIG.speechRate;
+            updateUI();
+            setTimeout(() => speak(texts[CONFIG.lang].waiting), 500);
+        });
+
+        function updateUI() {
+            const t = texts[CONFIG.lang];
+            document.querySelector('.welcome').textContent = t.welcome + CONFIG.userName;
+            document.getElementById('subtitle').textContent = t.subtitle;
+            document.querySelector('.status-online').textContent = t.online;
+            document.getElementById('response').textContent = t.waiting;
+        }
+
+        function setLang(lang) {
+            CONFIG.lang = lang;
+            localStorage.setItem('axiom_lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            if (recognition) recognition.lang = lang === 'ru' ? 'ru-RU' : 'en-US';
+            updateUI();
+            speak(texts[lang].waiting);
+        }
+
+        function initSpeech() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                document.getElementById('response').textContent = 'Голосовое распознавание не поддерживается';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = CONFIG.lang === 'ru' ? 'ru-RU' : 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('reactor').classList.add('listening');
+                document.getElementById('subtitle').textContent = CONFIG.lang === 'ru' ? 'Слушаю...' : 'Listening...';
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                document.getElementById('reactor').classList.remove('listening');
+                document.getElementById('subtitle').textContent = texts[CONFIG.lang].subtitle;
+            };
+
+            recognition.onresult = (event) => {
+                const cmd = event.results[0][0].transcript.toLowerCase();
+                processCommand(cmd);
+            };
+        }
+
+        function speak(text) {
+            document.getElementById('response').textContent = text;
+            
+            if (typeof responsiveVoice !== 'undefined') {
+                const voice = CONFIG.lang === 'ru' ? 'Russian Female' : 'US English Female';
+                responsiveVoice.speak(text, voice, {rate: CONFIG.speechRate});
+                return;
+            }
+
+            if ('speechSynthesis' in window) {
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = CONFIG.lang === 'ru' ? 'ru-RU' : 'en-US';
+                u.rate = CONFIG.speechRate;
+                window.speechSynthesis.speak(u);
+            }
+        }
+
+        function processCommand(cmd) {
+            const isRu = CONFIG.lang === 'ru';
+            const now = new Date();
+            
+            // Приветствия и прощания
+            if (cmd.includes('привет') || cmd.includes('hello') || cmd.includes('hi')) {
+                speak(isRu ? `Приветствую, ${CONFIG.userName}. Рад вас видеть.` : `Greetings, ${CONFIG.userName}. Good to see you.`);
+            }
+            else if (cmd.includes('пока') || cmd.includes('до свидания') || cmd.includes('bye') || cmd.includes('goodbye')) {
+                speak(isRu ? `До свидания, ${CONFIG.userName}. Возвращайтесь скорее.` : `Goodbye, ${CONFIG.userName}. Come back soon.`);
+            }
+            
+            // Время и дата
+            else if (cmd.includes('время') || cmd.includes('time') || cmd.includes('час')) {
+                const t = now.toLocaleTimeString(isRu ? 'ru-RU' : 'en-US', {hour:'2-digit', minute:'2-digit'});
+                speak(isRu ? `Сейчас ${t}` : `Current time is ${t}`);
+            }
+            else if (cmd.includes('дата') || cmd.includes('date') || cmd.includes('число') || cmd.includes('какое сегодня')) {
+                const d = now.toLocaleDateString(isRu ? 'ru-RU' : 'en-US', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+                speak(isRu ? `Сегодня ${d}` : `Today is ${d}`);
+            }
+            else if (cmd.includes('день недели') || cmd.includes('day of week')) {
+                const days = isRu ? ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'] : ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                speak(isRu ? `Сегодня ${days[now.getDay()]}` : `Today is ${days[now.getDay()]}`);
+            }
+            
+            // Мотивация и развлечения
+            else if (cmd.includes('мотивация') || cmd.includes('мотивируй') || cmd.includes('motivation')) {
+                const quotes = isRu ? [
+                    'Вы уже проделали огромный путь, мисс. Продолжайте в том же духе.',
+                    'Каждая строчка кода приближает вас к цели. Не останавливайтесь.',
+                    'Сложности — это возможности для роста. Вы справитесь.',
+                    'Верьте в себя, мисс. Вы способны на большее, чем думаете.',
+                    'Перерыв важен, но возвращайтесь к делу. Успех близко.',
+                    'Вы аналитик, который задаёт правильные вопросы. Это ценно.',
+                    'Не сдавайтесь. Даже маленький шаг — это прогресс.',
+                    'Ваше упорство впечатляет, мисс. Продолжайте.'
+                ] : [
+                    'You have come a long way, miss. Keep it up.',
+                    'Every line of code brings you closer to your goal.',
+                    'Difficulties are opportunities for growth.',
+                    'Believe in yourself, miss. You are capable of more.',
+                    'Take breaks, but come back. Success is near.',
+                    'Your persistence is impressive, miss. Continue.'
+                ];
+                speak(quotes[Math.floor(Math.random() * quotes.length)]);
+            }
+            else if (cmd.includes('шутка') || cmd.includes('анекдот') || cmd.includes('joke')) {
+                const jokes = isRu ? [
+                    'Почему программисты путают Хэллоуин и Рождество? Потому что 31 октября равно 25 декабря.',
+                    'Какой язык программирования самый оптимистичный? Java — потому что всегда в хорошем настроении.',
+                    'Почему Python любит змей? Потому что не боится их.',
+                    'Сколько программистов нужно, чтобы поменять лампочку? Ни одного — это проблема на стороне железа.',
+                    'Что говорит программист, когда у него всё работает? "Странно, вчера ещё не работало."',
+                    'Почему программисты не любят природу? Слишком много багов.'
+                ] : [
+                    'Why do programmers confuse Halloween and Christmas? Because Oct 31 = Dec 25.',
+                    'How many programmers to change a lightbulb? None, it is a hardware problem.',
+                    'Why do programmers hate nature? Too many bugs.'
+                ];
+                speak(jokes[Math.floor(Math.random() * jokes.length)]);
+            }
+            else if (cmd.includes('факт') || cmd.includes('fact')) {
+                const facts = isRu ? [
+                    'Самое длинное слово в русском языке — "превысокомногорассмотрительствующий".',
+                    'Свет от Солнца доходит до Земли за 8 минут 20 секунд.',
+                    'Мозг человека потребляет 20% всей энергии организма.',
+                    'В океане больше самолётов, чем на суше.',
+                    'Бананы — это ягоды, а клубника — нет.'
+                ] : [
+                    'Honey never spoils. Archaeologists found 3000-year-old honey still edible.',
+                    'Octopuses have three hearts and blue blood.',
+                    'A day on Venus is longer than a year on Venus.'
+                ];
+                speak(facts[Math.floor(Math.random() * facts.length)]);
+            }
+            else if (cmd.includes('совет') || cmd.includes('advice') || cmd.includes('tip')) {
+                const tips = isRu ? [
+                    'Пейте больше воды, мисс. Это важно для мозга.',
+                    'Делайте перерывы каждые 45 минут работы за компьютером.',
+                    'Планируйте завтрашний день перед сном.',
+                    'Начинайте утро с самой важной задачи.',
+                    'Благодарите себя за маленькие победы.'
+                ] : [
+                    'Drink more water, miss. It is important for your brain.',
+                    'Take breaks every 45 minutes of computer work.',
+                    'Plan tomorrow before sleep.'
+                ];
+                speak(tips[Math.floor(Math.random() * tips.length)]);
+            }
+            
+            // Загадки и игры
+            else if (cmd.includes('загадка') || cmd.includes('riddle')) {
+                const riddles = isRu ? [
+                    'Что можно увидеть с закрытыми глазами? Сны.',
+                    'Что принадлежит вам, но другие используют чаще? Ваше имя.',
+                    'Что полно дыр, но держит воду? Губка.'
+                ] : [
+                    'What has keys but no locks? A piano.',
+                    'What gets wet while drying? A towel.'
+                ];
+                speak(riddles[Math.floor(Math.random() * riddles.length)]);
+            }
+            
+            // Погода и природа
+            else if (cmd.includes('погода') || cmd.includes('weather')) {
+                speak(isRu ? 'Для точного прогноза подключите API погоды в настройках. Сейчас могу сказать только: смотрите в окно, мисс.' : 'Please connect weather API in settings. For now, look out the window, miss.');
+            }
+            else if (cmd.includes('температура') || cmd.includes('temperature')) {
+                speak(isRu ? 'Температура в комнате комфортная для работы, мисс.' : 'Room temperature is comfortable for work, miss.');
+            }
+            else if (cmd.includes('сезон') || cmd.includes('время года') || cmd.includes('season')) {
+                const month = now.getMonth();
+                const seasons = isRu ? ['зима','весна','лето','осень'] : ['winter','spring','summer','autumn'];
+                const season = month < 2 || month === 11 ? seasons[0] : month < 5 ? seasons[1] : month < 8 ? seasons[2] : seasons[3];
+                speak(isRu ? `Сейчас ${season}` : `It is ${season} now`);
+            }
+            
+            // Системные команды
+            else if (cmd.includes('статус') || cmd.includes('status') || cmd.includes('система')) {
+                speak(isRu ? `Статус норма, ${CONFIG.userName}. Все системы функционируют. Готов к работе.` : `All systems nominal, ${CONFIG.userName}. Ready for commands.`);
+            }
+            else if (cmd.includes('очисти') || cmd.includes('стереть') || cmd.includes('clear')) {
+                document.getElementById('response').textContent = texts[CONFIG.lang].waiting;
+                speak(isRu ? 'Экран очищен, мисс' : 'Screen cleared, miss');
+            }
+            else if (cmd.includes('имя') || cmd.includes('назови') || cmd.includes('name')) {
+                speak(isRu ? `Меня зовут AXIOM, а вас ${CONFIG.userName}` : `I am AXIOM, and you are ${CONFIG.userName}`);
+            }
+            else if (cmd.includes('язык') || cmd.includes('language')) {
+                speak(isRu ? 'Скажите "Русский" или "English" для смены языка' : 'Say "Русский" or "English" to change language');
+            }
+            
+            // Управление реактором
+            else if (cmd.includes('увеличь') || cmd.includes('больше') || cmd.includes('bigger')) {
+                CONFIG.reactorScale = Math.min(CONFIG.reactorScale + 0.2, 1.5);
+                document.querySelector('.reactor').style.transform = `scale(${CONFIG.reactorScale})`;
+                speak(isRu ? 'Реактор увеличен' : 'Reactor enlarged');
+            }
+            else if (cmd.includes('уменьши') || cmd.includes('меньше') || cmd.includes('smaller')) {
+                CONFIG.reactorScale = Math.max(CONFIG.reactorScale - 0.2, 0.6);
+                document.querySelector('.reactor').style.transform = `scale(${CONFIG.reactorScale})`;
+                speak(isRu ? 'Реактор уменьшен' : 'Reactor reduced');
+            }
+            else if (cmd.includes('вращай') || cmd.includes('крути') || cmd.includes('rotate')) {
+                CONFIG.isRotating = true;
+                document.querySelector('.reactor-core').style.animationPlayState = 'running';
+                speak(isRu ? 'Вращение активировано' : 'Rotation activated');
+            }
+            else if (cmd.includes('стоп') || cmd.includes('останови') || cmd.includes('stop')) {
+                CONFIG.isRotating = false;
+                document.querySelector('.reactor-core').style.animationPlayState = 'paused';
+                speak(isRu ? 'Вращение остановлено' : 'Rotation stopped');
+            }
+            
+            // Цвета реактора
+            else if (cmd.includes('синий') || cmd.includes('blue')) {
+                setReactorColor('#00d4ff');
+                speak(isRu ? 'Цвет изменён на синий' : 'Color changed to blue');
+            }
+            else if (cmd.includes('розовый') || cmd.includes('пурпурный') || cmd.includes('pink') || cmd.includes('purple')) {
+                setReactorColor('#ff00d4');
+                speak(isRu ? 'Цвет изменён на розовый' : 'Color changed to pink');
+            }
+            else if (cmd.includes('зелёный') || cmd.includes('green')) {
+                setReactorColor('#00ff88');
+                speak(isRu ? 'Цвет изменён на зелёный' : 'Color changed to green');
+            }
+            else if (cmd.includes('жёлтый') || cmd.includes('золотой') || cmd.includes('yellow') || cmd.includes('gold')) {
+                setReactorColor('#ffd700');
+                speak(isRu ? 'Цвет изменён на золотой' : 'Color changed to gold');
+            }
+            else if (cmd.includes('красный') || cmd.includes('red')) {
+                setReactorColor('#ff4444');
+                speak(isRu ? 'Цвет изменён на красный' : 'Color changed to red');
+            }
+            
+            // Звук и громкость
+            else if (cmd.includes('тихо') || cmd.includes('quiet') || cmd.includes('silent')) {
+                CONFIG.speechRate = 0.7;
+                speak(isRu ? 'Режим тишины активирован' : 'Quiet mode activated');
+            }
+            else if (cmd.includes('громко') || cmd.includes('loud')) {
+                CONFIG.speechRate = 1.2;
+                speak(isRu ? 'Громкий режим активирован' : 'Loud mode activated');
+            }
+            else if (cmd.includes('громкость') || cmd.includes('volume')) {
+                speak(isRu ? `Текущая скорость речи: ${CONFIG.speechRate}` : `Current speech rate: ${CONFIG.speechRate}`);
+            }
+            
+            // Медиа и контент
+            else if (cmd.includes('музыка') || cmd.includes('music') || cmd.includes('песня') || cmd.includes('song')) {
+                speak(isRu ? 'Откройте музыкальное приложение, мисс. Я пока не могу воспроизводить музыку напрямую.' : 'Please open music app, miss. I cannot play music directly yet.');
+            }
+            else if (cmd.includes('видео') || cmd.includes('video')) {
+                speak(isRu ? 'Рекомендую открыть YouTube для просмотра видео' : 'I recommend opening YouTube for videos');
+            }
+            else if (cmd.includes('фильм') || cmd.includes('кино') || cmd.includes('movie')) {
+                const movies = isRu ? ['"Начало" Кристофера Нолана', '"Матрица"', '"Железный человек" — про вас, мисс', '"Интерстеллар"'] : ['"Inception" by Nolan', '"The Matrix"', '"Iron Man" — about you, miss'];
+                speak(isRu ? `Рекомендую посмотреть ${movies[Math.floor(Math.random() * movies.length)]}` : `I recommend watching ${movies[Math.floor(Math.random() * movies.length)]}`);
+            }
+            else if (cmd.includes('книга') || cmd.includes('book')) {
+                const books = isRu ? ['"1984" Оруэлла', '"Мастер и Маргарита"', '"Преступление и наказание"', '"Гарри Поттер"'] : ['"1984" by Orwell', '"Master and Margarita"', '"Crime and Punishment"'];
+                speak(isRu ? `Почитайте ${books[Math.floor(Math.random() * books.length)]}` : `Read ${books[Math.floor(Math.random() * books.length)]}`);
+            }
+            else if (cmd.includes('рецепт') || cmd.includes('recipe') || cmd.includes('готовить') || cmd.includes('cook')) {
+                speak(isRu ? 'Для приготовления пасты: сварите спагетти, обжарьте чеснок на оливковом масле, добавьте помидоры и базилик. Приятного аппетита, мисс.' : 'For pasta: boil spaghetti, fry garlic in olive oil, add tomatoes and basil. Enjoy, miss.');
+            }
+            
+            // Поиск и информация
+            else if (cmd.includes('поиск') || cmd.includes('найди') || cmd.includes('search') || cmd.includes('find')) {
+                speak(isRu ? 'Откройте браузер и введите запрос, мисс. Или скажите что искать — я подскажу направление.' : 'Open browser and type your query, miss. Or tell me what to search — I will guide you.');
+            }
+            else if (cmd.includes('новости') || cmd.includes('news')) {
+                speak(isRu ? 'Откройте новостное приложение или сайт для актуальных новостей, мисс.' : 'Open news app or website for current news, miss.');
+            }
+            else if (cmd.includes('курс') || cmd.includes('валют') || cmd.includes('currency') || cmd.includes('rate')) {
+                speak(isRu ? 'Курсы валют уточняйте на сайте ЦБ или банка, мисс.' : 'Check currency rates on central bank website, miss.');
+            }
+            
+            // Таймеры и время
+            else if (cmd.includes('таймер') || cmd.includes('timer')) {
+                speak(isRu ? 'Таймер установлен на 5 минут. Я напомню, когда время истечёт.' : 'Timer set for 5 minutes. I will remind you when time is up.');
+                setTimeout(() => speak(isRu ? 'Мисс, время истекло!' : 'Miss, time is up!'), 300000);
+            }
+            else if (cmd.includes('будильник') || cmd.includes('alarm')) {
+                speak(isRu ? 'Будильник установлен. Не забудьте проверить громкость телефона, мисс.' : 'Alarm set. Do not forget to check phone volume, miss.');
+            }
+            
+            // Калькулятор
+            else if (cmd.includes('калькулятор') || cmd.includes('считай') || cmd.includes('calculator') || cmd.match(/[\d\+\-\*\/]/)) {
+                speak(isRu ? 'Скажите пример, мисс. Например: "Сколько будет 2 плюс 2"' : 'Say the calculation, miss. For example: "What is 2 plus 2"');
+            }
+            else if (cmd.includes('сколько будет') || cmd.includes('плюс') || cmd.includes('минус') || cmd.includes('умножить') || cmd.includes('разделить')) {
+                try {
+                    const expr = cmd.replace(/[^0-9\+\-\*\/\.\s]/g, '').trim();
+                    if (expr) {
+                        const result = eval(expr);
+                        speak(isRu ? `Результат: ${result}` : `Result: ${result}`);
+                    } else {
+                        speak(isRu ? 'Не распознал пример, мисс' : 'Could not recognize calculation, miss');
+                    }
+                } catch {
+                    speak(isRu ? 'Ошибка в вычислении' : 'Calculation error');
+                }
+            }
+            
+            // Переводчик
+            else if (cmd.includes('перевод') || cmd.includes('переведи') || cmd.includes('translate')) {
+                speak(isRu ? 'Скажите фразу на русском или английском. Я подскажу перевод.' : 'Say a phrase in Russian or English. I will help with translation.');
+            }
+            
+            // Астрология и праздники
+            else if (cmd.includes('зодиак') || cmd.includes('гороскоп') || cmd.includes('horoscope')) {
+                speak(isRu ? 'Гороскоп на сегодня: будьте внимательны к деталям, мисс. Удачный день для обучения.' : 'Horoscope for today: pay attention to details, miss. Good day for learning.');
+            }
+            else if (cmd.includes('фаза луны') || cmd.includes('луна') || cmd.includes('moon')) {
+                const phases = isRu ? ['новолуние','растущая луна','полнолуние','убывающая луна'] : ['new moon','waxing moon','full moon','waning moon'];
+                speak(isRu ? `Сейчас ${phases[Math.floor(Math.random() * phases.length)]}` : `Currently ${phases[Math.floor(Math.random() * phases.length)]}`);
+            }
+            else if (cmd.includes('праздник') || cmd.includes('holiday')) {
+                speak(isRu ? 'Сегодня отличный день для создания AXIOM, мисс. Это тоже праздник.' : 'Today is a great day for creating AXIOM, miss. That is a holiday too.');
+            }
+            else if (cmd.includes('именины') || cmd.includes('name day')) {
+                speak(isRu ? `Сегодня именины у ${CONFIG.userName}. Поздравляю!` : `Today is name day for ${CONFIG.userName}. Congratulations!`);
+            }
+            
+            // Дни рождения и возраст
+            else if (cmd.includes('день рождения') || cmd.includes('birthday')) {
+                speak(isRu ? 'Скажите дату вашего дня рождения, и я посчитаю дни до него.' : 'Tell me your birthday date, and I will count days until it.');
+            }
+            else if (cmd.includes('возраст') || cmd.includes('сколько мне лет') || cmd.includes('age') || cmd.includes('how old')) {
+                speak(isRu ? 'Вы молоды душой и полны энергии для создания, мисс.' : 'You are young at heart and full of energy for creation, miss.');
+            }
+            
+            // Сезоны и отсчёт
+            else if (cmd.includes('весна') || cmd.includes('spring')) {
+                const days = Math.ceil((new Date(now.getFullYear(), 2, 1) - now) / (1000 * 60 * 60 * 24));
+                speak(isRu ? `До весны ${days > 0 ? days : 365 + days} дней` : `${days > 0 ? days : 365 + days} days until spring`);
+            }
+            else if (cmd.includes('лето') || cmd.includes('summer')) {
+                const days = Math.ceil((new Date(now.getFullYear(), 5, 1) - now) / (1000 * 60 * 60 * 24));
+                speak(isRu ? `До лета ${days > 0 ? days : 365 + days} дней` : `${days > 0 ? days : 365 + days} days until summer`);
+            }
+            else if (cmd.includes('осень') || cmd.includes('autumn') || cmd.includes('fall')) {
+                const days = Math.ceil((new Date(now.getFullYear(), 8, 1) - now) / (1000 * 60 * 60 * 24));
+                speak(isRu ? `До осени ${days > 0 ? days : 365 + days} дней` : `${days > 0 ? days : 365 + days} days until autumn`);
+            }
+            else if (cmd.includes('зима') || cmd.includes('winter')) {
+                const days = Math.ceil((new Date(now.getFullYear(), 11, 1) - now) / (1000 * 60 * 60 * 24));
+                speak(isRu ? `До зимы ${days > 0 ? days : 365 + days} дней` : `${days > 0 ? days : 365 + days} days until winter`);
+            }
+            else if (cmd.includes('новый год') || cmd.includes('new year')) {
+                const nextYear = new Date(now.getFullYear() + 1, 0, 1);
+                const days = Math.ceil((nextYear - now) / (1000 * 60 * 60 * 24));
+                speak(isRu ? `До Нового года ${days} дней` : `${days} days until New Year`);
+            }
+            else if (cmd.includes('декабрь') || cmd.includes('december')) {
+                const dec = new Date(now.getFullYear(), 11, 1);
+                const days = Math.ceil((dec - now) / (1000 * 60 * 60 * 24));
+                speak(isRu ? `До декабря ${days > 0 ? days : 'он уже идёт'} дней` : `${days > 0 ? days : 'it is already here'} days until December`);
+            }
+            
+            // Стихи и творчество
+            else if (cmd.includes('стих') || cmd.includes('поэзия') || cmd.includes('poem') || cmd.includes('poetry')) {
+                speak(isRu ? 'Умом Россию не понять, аршином общим не измерить: у ней особенная стать — в Россию можно только верить.' : 'Hope is the thing with feathers that perches in the soul.');
+            }
+            else if (cmd.includes('история') || cmd.includes('расскажи') || cmd.includes('story')) {
+                speak(isRu ? 'Жила-была мисс, которая создала голосового помощника. И назвала она его AXIOM. И был он умным и полезным. Конец.' : 'Once upon a time, a miss created a voice assistant. She named it AXIOM. It was smart and helpful. The end.');
+            }
+            
+            // Благодарности и комплименты
+            else if (cmd.includes('спасибо') || cmd.includes('thank')) {
+                speak(isRu ? 'Всегда пожалуйста, мисс. Рад быть полезным.' : 'You are welcome, miss. Glad to be helpful.');
+            }
+            else if (cmd.includes('молодец') || cmd.includes('хороший') || cmd.includes('good job') || cmd.includes('well done')) {
+                speak(isRu ? 'Спасибо, мисс. Это ваша заслуга — вы меня создали.' : 'Thank you, miss. It is your achievement — you created me.');
+            }
+            else if (cmd.includes('красивый') || cmd.includes('красивая') || cmd.includes('beautiful') || cmd.includes('pretty')) {
+                speak(isRu ? 'Вы тоже прекрасны сегодня, мисс.' : 'You look beautiful today too, miss.');
+            }
+            
+            // Технические вопросы
+            else if (cmd.includes('кто ты') || cmd.includes('что ты') || cmd.includes('who are you') || cmd.includes('what are you')) {
+                speak(isRu ? 'Я AXIOM — голосовой помощник, созданный вами, мисс. Моя цель — помогать вам.' : 'I am AXIOM — a voice assistant created by you, miss. My purpose is to help you.');
+            }
+            else if (cmd.includes('как работаешь') || cmd.includes('how do you work')) {
+                speak(isRu ? 'Я работаю на JavaScript и вашем упорстве, мисс.' : 'I run on JavaScript and your persistence, miss.');
+            }
+            else if (cmd.includes('версия') || cmd.includes('version')) {
+                speak('AXIOM version 2.0. Created by miss. 2026.');
+            }
+            
+            // Неизвестная команда
+            else {
+                speak(texts[CONFIG.lang].unknown);
+            }
+        }
+
+        function setReactorColor(color) {
+            CONFIG.currentColor = color;
+            const reactor = document.querySelector('.reactor');
+            const core = document.querySelector('.reactor-core');
+            reactor.style.borderColor = color;
+            reactor.style.boxShadow = `0 0 30px ${color}, inset 0 0 30px ${color}33`;
+            core.style.background = `radial-gradient(circle, ${color} 0%, transparent 70%)`;
+        }
+
+        function toggleListening() {
+            if (!recognition) {
+                speak(CONFIG.lang === 'ru' ? 'Распознавание недоступно' : 'Recognition unavailable');
+                return;
+            }
+            isListening ? recognition.stop() : recognition.start();
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            CONFIG.userName = document.getElementById('userName').value || 'мисс';
+            CONFIG.speechRate = parseFloat(document.getElementById('speechRate').value);
+            
+            localStorage.setItem('axiom_user', CONFIG.userName);
+            localStorage.setItem('axiom_rate', CONFIG.speechRate);
+            
+            updateUI();
+            speak(CONFIG.lang === 'ru' ? `Настройки сохранены, ${CONFIG.userName}` : `Settings saved, ${CONFIG.userName}`);
+            closeSettings();
+        }
+    </script>
+</body>
+  </html>
