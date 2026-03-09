@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXIOM AI - J.A.R.V.I.S. Edition</title>
+    <script src="https://code.responsivevoice.org/responsivevoice.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            color: #00d4ff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        /* Дизайн углов и реактора как в прототипе */
+        .corner { position: fixed; width: 40px; height: 40px; border: 2px solid #00d4ff; opacity: 0.5; }
+        .corner-tl { top: 15px; left: 15px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 15px; right: 15px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 15px; left: 15px; border-right: none; border-top: none; }
+        .corner-br { bottom: 15px; right: 15px; border-left: none; border-top: none; }
+
+        .container { text-align: center; width: 100%; max-width: 500px; z-index: 10; }
+        .status { font-size: 0.7em; letter-spacing: 4px; margin-bottom: 5px; color: #00ff88; }
+        .welcome { font-size: 1.5em; margin-bottom: 5px; text-shadow: 0 0 15px #00d4ff; }
+        
+        .reactor-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .reactor {
+            width: 130px;
+            height: 130px;
+            border: 3px solid #00d4ff;
+            border-radius: 50%;
+            box-shadow: 0 0 25px #00d4ff, inset 0 0 20px rgba(0, 212, 255, 0.2);
+            animation: pulse 2s infinite;
+        }
+        .reactor.listening { border-color: #ff00d4; box-shadow: 0 0 40px #ff00d4; }
+        .core {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #00d4ff 0%, transparent 75%);
+            border-radius: 50%;
+            animation: rotate 4s linear infinite;
+        }
+
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .response-box {
+            min-height: 80px;
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            background: rgba(0, 212, 255, 0.03);
+            border-radius: 5px;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .mic-btn {
+            width: 70px; height: 70px;
+            border-radius: 50%; border: 1px solid #00d4ff;
+            background: none; color: #00d4ff; font-size: 1.8em;
+            cursor: pointer; transition: 0.3s;
+        }
+        .mic-btn:active { transform: scale(0.9); background: rgba(0, 212, 255, 0.1); }
+
+        .settings-btn { position: fixed; bottom: 20px; right: 20px; background: none; border: none; font-size: 1.5em; cursor: pointer; }
+        
+        /* Модальное окно настроек */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal-content {
+            background: #111; border: 1px solid #00d4ff; padding: 25px; border-radius: 10px; width: 90%; max-width: 350px;
+        }
+        input { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #00d4ff; color: #fff; }
+        .save-btn { width: 100%; padding: 10px; background: #00d4ff; color: #000; border: none; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+
+    <div class="container">
+        <div class="status" id="status">SYSTEM ONLINE</div>
+        <div class="welcome" id="welcome">Добро пожаловать, мисс</div>
+        
+        <div class="reactor-container">
+            <div class="reactor" id="reactor"></div>
+            <div class="core"></div>
+        </div>
+
+        <div class="response-box" id="response">
+            AXIOM активирован. Готов к работе, мисс.
+        </div>
+
+        <button class="mic-btn" onclick="toggleMic()">🎤</button>
+    </div>
+
+    <button class="settings-btn" onclick="toggleModal(true)">⚙️</button>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h3>Протокол настроек</h3>
+            <label>Ваше имя:</label>
+            <input type="text" id="userNameInput" placeholder="мисс">
+            <label>Hugging Face API Key:</label>
+            <input type="password" id="apiKeyInput" placeholder="hf_...">
+            <button class="save-btn" onclick="saveSettings()">СОХРАНИТЬ</button>
+            <button onclick="toggleModal(false)" style="background:none; color:#00d4ff; border:none; margin-top:10px; width:100%;">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            userName: localStorage.getItem('axiom_name') || 'мисс',
+            apiKey: localStorage.getItem('axiom_key') || '',
+            isListening: false
+        };
+
+        const responseEl = document.getElementById('response');
+        const welcomeEl = document.getElementById('welcome');
+
+        // Инициализация
+        window.onload = () => {
+            welcomeEl.textContent = `Добро пожаловать, ${state.userName}`;
+            speak(`Системы запущены. Я к вашим услугам, ${state.userName}`);
+        };
+
+        function toggleModal(show) {
+            document.getElementById('modal').style.display = show ? 'flex' : 'none';
+            if(show) {
+                document.getElementById('userNameInput').value = state.userName;
+                document.getElementById('apiKeyInput').value = state.apiKey;
+            }
+        }
+
+        function saveSettings() {
+            state.userName = document.getElementById('userNameInput').value || 'мисс';
+            state.apiKey = document.getElementById('apiKeyInput').value;
+            localStorage.setItem('axiom_name', state.userName);
+            localStorage.setItem('axiom_key', state.apiKey);
+            welcomeEl.textContent = `Добро пожаловать, ${state.userName}`;
+            toggleModal(false);
+            speak("Данные обновлены, мисс.");
+        }
+
+        function speak(text) {
+            responseEl.textContent = text;
+            if (window.responsiveVoice) {
+                responsiveVoice.speak(text, "Russian Female", {rate: 1});
+            }
+        }
+
+        async function processAI(input) {
+            if (!state.apiKey) {
+                speak("Мисс, для работы интеллекта необходимо ввести API ключ в настройках.");
+                return;
+            }
+
+            responseEl.textContent = "Анализирую...";
+            try {
+                const res = await fetch("https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium", {
+                    headers: { Authorization: `Bearer ${state.apiKey}` },
+                    method: "POST",
+                    body: JSON.stringify({ inputs: input })
+                });
+                const data = await res.json();
+                const reply = (Array.isArray(data) ? data[0].generated_text : data.generated_text) || "Затрудняюсь ответить, мисс.";
+                speak(reply);
+            } catch (e) {
+                speak("Произошла ошибка связи с сервером.");
+            }
+        }
+
+        function handleCommand(cmd) {
+            const lowCmd = cmd.toLowerCase();
+            
+            if (lowCmd.includes("время")) {
+                speak(`Сейчас ${new Date().toLocaleTimeString('ru-RU')}`);
+            } else if (lowCmd.includes("кто ты")) {
+                speak("Я AXIOM, ваш персональный ассистент. Мой код был доработан Джарвисом специально для вас.");
+            } else if (lowCmd.includes("курс") || lowCmd.includes("валют")) {
+                speak("Мисс, на данный момент курс сомони стабилен, но для точных данных мне нужно подключение к банку.");
+            } else {
+                processAI(cmd);
+            }
+        }
+
+        function toggleMic() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return alert("Ваш браузер не поддерживает голос.");
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+
+            recognition.onstart = () => {
+                document.getElementById('reactor').classList.add('listening');
+                document.getElementById('status').textContent = "LISTENING...";
+            };
+
+            recognition.onend = () => {
+                document.getElementById('reactor').classList.remove('listening');
+                document.getElementById('status').textContent = "SYSTEM ONLINE";
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                handleCommand(transcript);
+            };
+
+            recognition.start();
+        }
+    </script>
+</body>
+</html>
